@@ -10,9 +10,15 @@ type Tunnel struct {
 	index    int
 }
 
-func (self *Tunnel) Send(data []byte) {
+func (self *Tunnel) Send(data []byte) (n int, err error) {
 	// 加密一下发送
-	self.Send(data)
+	return self.Write(data)
+}
+
+func (self *Tunnel) Read(buffer []byte) (n int, err error) {
+	// 解密
+	n, err = self.Conn.Read(buffer)
+	return
 }
 
 type TunnelHeap []*Tunnel

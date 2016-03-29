@@ -2,7 +2,7 @@ package ferry
 
 import (
 	"bufio"
-	// "fmt"
+	"fmt"
 	"net"
 	"time"
 )
@@ -27,25 +27,47 @@ func (self *Tube) Recieve() (err error) {
 		n, err := rd.Read(buffer)
 		if err != nil {
 			// TODO
+			fmt.Println(err)
+			fmt.Println("Recieve error")
 			break
 		}
-		err = self.Send(buffer[:n])
-		if err != nil {
-			break
-		}
+		go self.Send(buffer[:n])
 	}
-	return nil
+	return err
+}
+
+func (self *Tube) ServerRecieve() (err error) {
+	for {
+		buffer := BufferPool()
+		n, err := self.tunnel.Read(buffer)
+		if err != nil {
+			// TODO
+			fmt.Println(err)
+			fmt.Println("Recieve error")
+			break
+		}
+		go self.ServerSend(buffer[:n])
+	}
+	return err
+
+}
+
+func (self *Tube) ServerSend(data []byte) (err error) {
+	_, err = self.fromConn.Write(data)
+	if err != nil {
+		fmt.Println("server send err")
+		fmt.Println(err)
+	}
+	return
 }
 
 func (self *Tube) Send(data []byte) (err error) {
-	for {
-		_, err := self.tunnel.Write(data)
-		if err != nil {
-			//TODO
-			break
-		}
+	_, err = self.tunnel.Send(data)
+	if err != nil {
+		//TODO
+		fmt.Println(err)
 	}
-	return nil
+	return err
 }
 
 func (self *Tube) Dispatch(conn *net.TCPConn) {
@@ -53,4 +75,11 @@ func (self *Tube) Dispatch(conn *net.TCPConn) {
 	conn.SetKeepAlivePeriod(time.Second * 60)
 	self.fromConn = conn
 	self.Recieve()
+}
+
+func (self *Tube) ServerDispatch(conn *net.TCPConn) {
+	conn.SetKeepAlive(true)
+	conn.SetKeepAlivePeriod(time.Second * 60)
+	self.fromConn = conn
+	self.ServerRecieve()
 }

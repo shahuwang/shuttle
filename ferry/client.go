@@ -2,6 +2,7 @@ package ferry
 
 import (
 	"container/heap"
+	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -41,6 +42,7 @@ func (self *Client) Listen() {
 			}
 			continue
 		}
+		fmt.Println("accept connection")
 		conn.SetKeepAlive(true)
 		conn.SetKeepAlivePeriod(time.Second * 60)
 		go self.HandleConn(conn)
@@ -52,24 +54,28 @@ func (self *Client) Start() error {
 	size := cap(self.tunnels)
 	for i := 0; i < size; i++ {
 		go func(index int) {
-			for {
-				item, err := self.createTunnel()
-				if err != nil {
-					fmt.Errorf("tunnel %d reconnect failed", index)
-					time.Sleep(time.Second * 3)
-					continue
-				}
-				self.addTunnel(item)
+			item, err := self.createTunnel()
+			if err != nil {
+				fmt.Println("tunnel %d reconnect failed", index)
+				time.Sleep(time.Second * 3)
+				return
 			}
+			fmt.Println("add tunnel %d", index)
+			self.addTunnel(item)
 		}(i)
 	}
-	go self.Listen()
+	fmt.Println("start listen")
+	self.Listen()
 	return nil
 }
 
 func (self *Client) HandleConn(conn *net.TCPConn) error {
 	defer conn.CloseRead()
 	tunnel := self.fetchTunnel()
+	if tunnel == nil {
+		fmt.Println("no tunnel to use")
+		return errors.New("no tunnel to use")
+	}
 	defer self.dropTunnel(tunnel)
 	tube := &Tube{
 		tunnel:   tunnel,
@@ -80,11 +86,13 @@ func (self *Client) HandleConn(conn *net.TCPConn) error {
 }
 
 func (self *Client) createTunnel() (tunnel *Tunnel, err error) {
-	conn, err := net.DialTimeout("tcp", self.baddr, time.Second*5)
+	fmt.Println("start create tunnel")
+	conn, err := net.DialTimeout("tcp", self.baddr, time.Duration(5)*time.Second)
 	if err != nil {
-		fmt.Errorf("dial server timeout")
+		fmt.Println("dial server timeout")
 		return
 	}
+	fmt.Println("created tunnel")
 	return &Tunnel{Conn: conn}, nil
 }
 
@@ -115,4 +123,13 @@ func (self *Client) dropTunnel(item *Tunnel) {
 
 func BufferPool() []byte {
 	return make([]byte, PACKAGE_SIZE)
+}
+
+func NewClient(laddr, baddr string) *Client {
+	client := &Client{
+		laddr:   laddr,
+		baddr:   baddr,
+		tunnels: make(TunnelHeap, 0, 1),
+	}
+	return client
 }

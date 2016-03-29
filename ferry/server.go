@@ -1,6 +1,7 @@
 package ferry
 
 import (
+	"fmt"
 	"net"
 )
 
@@ -16,7 +17,7 @@ func (self *Server) Start() {
 func (self *Server) Listen() {
 	ln, err := net.ListenTCP("tcp", self.laddr)
 	if err != nil {
-		panic("listen failed:%v", err)
+		panic("server listen failed")
 	}
 	for {
 		conn, err := ln.AcceptTCP()
@@ -34,5 +35,26 @@ func (self *Server) Listen() {
 
 func (self *Server) HandleConn(conn *net.TCPConn) {
 	defer conn.Close()
+	tunnel := &Tunnel{Conn: conn}
+	fromConn, err := net.DialTCP("tcp", nil, self.baddr)
+	if err != nil {
+		fmt.Println(err)
+		fmt.Println("server handleconn error")
+		return
+	}
+	fmt.Println("handle conn server")
+	tube := &Tube{
+		tunnel:   tunnel,
+		fromConn: fromConn,
+	}
+	tube.ServerDispatch(fromConn)
+}
 
+func NewServer(lr, br string) *Server {
+	laddr, _ := net.ResolveTCPAddr("tcp", lr)
+	baddr, _ := net.ResolveTCPAddr("tcp", br)
+	return &Server{
+		laddr: laddr,
+		baddr: baddr,
+	}
 }
