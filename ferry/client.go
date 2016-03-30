@@ -3,7 +3,7 @@ package ferry
 import (
 	"container/heap"
 	"errors"
-	"fmt"
+	"github.com/qiniu/log"
 	"net"
 	"sync"
 	"time"
@@ -28,7 +28,7 @@ type Client struct {
 func (self *Client) Listen() {
 	ln, err := net.Listen("tcp", self.laddr)
 	if err != nil {
-		fmt.Println("listen failed: %v", err)
+		log.Infof("listen failed: %v", err)
 		panic("!!")
 	}
 	listener := ln.(*net.TCPListener)
@@ -42,7 +42,7 @@ func (self *Client) Listen() {
 			}
 			continue
 		}
-		fmt.Println("accept connection")
+		log.Infof("accept connection")
 		conn.SetKeepAlive(true)
 		conn.SetKeepAlivePeriod(time.Second * 60)
 		go self.HandleConn(conn)
@@ -56,15 +56,15 @@ func (self *Client) Start() error {
 		go func(index int) {
 			item, err := self.createTunnel()
 			if err != nil {
-				fmt.Println("tunnel %d reconnect failed", index)
+				log.Infof("tunnel %d reconnect failed", index)
 				time.Sleep(time.Second * 3)
 				return
 			}
-			fmt.Println("add tunnel %d", index)
+			log.Infof("add tunnel %d", index)
 			self.addTunnel(item)
 		}(i)
 	}
-	fmt.Println("start listen")
+	log.Infof("start listen")
 	self.Listen()
 	return nil
 }
@@ -73,7 +73,7 @@ func (self *Client) HandleConn(conn *net.TCPConn) error {
 	defer conn.CloseRead()
 	tunnel := self.fetchTunnel()
 	if tunnel == nil {
-		fmt.Println("no tunnel to use")
+		log.Infof("no tunnel to use")
 		return errors.New("no tunnel to use")
 	}
 	defer self.dropTunnel(tunnel)
@@ -82,17 +82,18 @@ func (self *Client) HandleConn(conn *net.TCPConn) error {
 		fromConn: conn,
 	}
 	tube.Dispatch(conn)
+	conn.Close()
 	return nil
 }
 
 func (self *Client) createTunnel() (tunnel *Tunnel, err error) {
-	fmt.Println("start create tunnel")
+	log.Infof("start create tunnel")
 	conn, err := net.DialTimeout("tcp", self.baddr, time.Duration(5)*time.Second)
 	if err != nil {
-		fmt.Println("dial server timeout")
+		log.Infof("dial server timeout")
 		return
 	}
-	fmt.Println("created tunnel")
+	log.Infof("created tunnel")
 	return &Tunnel{Conn: conn}, nil
 }
 

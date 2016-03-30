@@ -1,7 +1,7 @@
 package ferry
 
 import (
-	"fmt"
+	"github.com/qiniu/log"
 	"net"
 )
 
@@ -38,16 +38,17 @@ func (self *Server) HandleConn(conn *net.TCPConn) {
 	tunnel := &Tunnel{Conn: conn}
 	fromConn, err := net.DialTCP("tcp", nil, self.baddr)
 	if err != nil {
-		fmt.Println(err)
-		fmt.Println("server handleconn error")
+		log.Infof(err.Error())
+		log.Infof("server handleconn error")
 		return
 	}
-	fmt.Println("handle conn server")
+	log.Infof("handle conn server")
 	tube := &Tube{
 		tunnel:   tunnel,
 		fromConn: fromConn,
 	}
 	tube.ServerDispatch(fromConn)
+	fromConn.Close()
 }
 
 func NewServer(lr, br string) *Server {

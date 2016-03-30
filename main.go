@@ -24,13 +24,13 @@ func main() {
 					fmt.Println("proxy err")
 					break
 				}
-				fmt.Printf("read %d byte proxy", n)
+				fmt.Println("read %d byte proxy", n)
 			}
 			//conn.Write(buffer)
 			//conn.Close()
 		}
 	}()
-	server := ferry.NewServer("localhost:8087", "localhost:8088")
+	server := ferry.NewServer("localhost:8087", "192.168.33.146:3128")
 	server.Start()
 	fmt.Println("client start")
 	client := ferry.NewClient("localhost:8086", "localhost:8087")
