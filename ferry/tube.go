@@ -20,19 +20,21 @@ func (self *Tube) Recieve() (err error) {
 	rd := bufio.NewReaderSize(self.fromConn, bufsize)
 	defer self.fromConn.CloseRead()
 	for {
-		log.Info("recieve====")
 		buffer := BufferPool()
+		log.Info("start recieve")
 		n, err := rd.Read(buffer)
 		if err != nil {
 			// TODO
 			log.Infof(err.Error())
 			break
 		}
+		log.Info("start send to tunnel")
 		_, err = self.tunnel.Send(buffer[:n])
-		log.Info("send=====")
+		log.Info("sent to tunnel")
 		log.Info(err)
 		if err != nil {
 			log.Infof(err.Error())
+			self.tunnel.Send([]byte("EOF"))
 			break
 		}
 	}
@@ -54,7 +56,6 @@ func (self *Tube) Back() (err error) {
 			break
 		}
 		_, err = self.fromConn.Write(buffer[:n])
-		log.Info("write back======")
 		if err != nil {
 			log.Infof(err.Error())
 			break
@@ -78,6 +79,8 @@ func (self *Tube) ServerRecieve() (err error) {
 		}
 		_, err = self.fromConn.Write(buffer[:n])
 		if err != nil {
+			log.Info("server write to proxy err")
+			log.Info(err.Error())
 			break
 		}
 	}
